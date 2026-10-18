@@ -1,164 +1,148 @@
 # SHL Grammar Scoring Engine
 
-An audio-based machine learning project for predicting spoken English grammar scores from speech recordings, developed for the **SHL Hiring Assessment 2026** competition.
+A machine learning project for predicting spoken-English grammatical proficiency from audio recordings. This project explores speech representations, automatic speech recognition, linguistic feature engineering, and ensemble regression to estimate grammar scores on a continuous 0–5 scale.
 
-The objective is to predict a continuous grammar score between **0 and 5** from audio samples approximately 45–60 seconds long. The project evolved from a baseline speech-embedding regression model into a more advanced multimodal pipeline combining speech representations, transcription-based linguistic features, and model ensembling.
+The goal is to investigate how combining complementary audio and text representations can improve generalization on a small, labelled speech dataset.
 
-## Project Evolution: Baseline → Advanced Pipeline
+## Project Overview
 
-The project contains two notebooks representing different stages of experimentation.
+Automated grammar assessment from speech is challenging because a recording contains more than grammatical information. It includes pronunciation, pauses, disfluencies, transcription errors, and variations in sentence structure.
 
-| Area | Original notebook | Improved notebook |
-|---|---|---|
-| Notebook | `shl-grammar-scoring-engine.ipynb` | `shl_grammar_scoring_whisper_wavlm.ipynb` |
-| Speech representation | Wav2Vec2 embeddings | WavLM and Whisper encoder representations |
-| Audio understanding | Primarily audio embeddings and acoustic features | Speech embeddings combined with transcription-derived information |
-| Language features | Limited linguistic information | Whisper transcriptions, E5 text embeddings, and handcrafted text features |
-| Model strategy | Ridge regression and Random Forest baselines | RidgeCV, SVR, gradient boosting, blending, and stacking experiments |
-| Main objective | Establish a reliable baseline | Improve predictive performance by combining complementary signals |
+This project investigates a multimodal approach that combines pretrained speech representations, transcribed text, linguistic statistics, and classical machine learning models.
 
-The second notebook builds on the first rather than replacing it. It explores whether speech representations, linguistic information, and model combinations can capture different aspects of grammar proficiency more effectively than a single-modality baseline.
+The work is organized around iterative experimentation: establishing a baseline, exploring richer feature representations, comparing regressors, and evaluating stacking approaches using cross-validation.
 
-## 1. Original Notebook: Establishing the Baseline
+## Dataset
 
-The first notebook established a benchmark using speech representations and conventional machine learning.
+The competition dataset contains:
 
-### What it implemented
+- **769 labelled training audio recordings**
+- **216 test audio recordings**
+- A continuous grammar-scoring target on a 0–5 scale
 
-- Extracted **Wav2Vec2 speech embeddings** to represent information learned from audio.
-- Used handcrafted acoustic features with a Random Forest regression model.
-- Trained Ridge regression on speech embeddings to predict grammar scores.
-- Compared model performance using RMSE and Pearson correlation.
-- Evaluated the effect of changing the Ridge regularization parameter.
+The audio files are used to extract speech representations, acoustic information, and text-based features.
 
-### Baseline validation results
+The original dataset is not included in this repository. Access it through the relevant competition source and configure the notebook to use the required training and test files.
 
-| Model | RMSE ↓ | Pearson correlation ↑ |
-|---|---:|---:|
-| Acoustic features + Random Forest | 0.9058 | 0.6825 |
-| Wav2Vec2 + Ridge | 0.7232 | 0.8137 |
-| Wav2Vec2 + Ridge, alpha = 100 | **0.6951** | **0.8277** |
+## Current Approach
 
-Lower RMSE indicates more accurate predictions, while higher Pearson correlation indicates a stronger relationship between predicted and actual scores.
+The main experimental notebook is:
 
-**Key finding:** Wav2Vec2 embeddings performed substantially better than the handcrafted acoustic-feature baseline. Increasing Ridge regularization also improved the reported validation results.
+[`Grammar_Scoring_from_Speech_Whisper_WavLM_Stacking.ipynb`](Grammar_Scoring_from_Speech_Whisper_WavLM_Stacking.ipynb)
 
-However, the baseline primarily relied on audio representations. It did not fully exploit the complementary information available from speech transcription, text semantics, and more diverse model architectures.
+### 1. Speech Representations
 
-## 2. Improved Notebook: A Multimodal, Ensemble-Based Approach
+Pretrained WavLM representations are used to capture information from the audio signal. Chunk-based pooling can help represent recordings that contain changes in speaking patterns and sentence structure over time.
 
-The second notebook extends the baseline by investigating several complementary sources of information from each speech recording.
+These representations provide learned speech features without requiring the entire speech encoder to be trained from scratch.
 
-### What improved
+### 2. Automatic Speech Recognition
 
-**1. Added Whisper transcription**
+Whisper is used to transcribe spoken recordings into text.
 
-Whisper large-v3 is used to transcribe speech in chunks. This introduces textual information that can help characterize grammar and sentence structure rather than relying exclusively on audio embeddings.
+The resulting transcripts provide a text representation of the spoken response, allowing the model to explore linguistic patterns alongside audio features.
 
-The pipeline also extracts transcription-related information, including confidence-oriented and log-probability/entropy features.
+ASR transcripts are imperfect: transcription systems can omit, normalize, or introduce errors. Consequently, transcript-derived information is treated as a useful signal rather than ground truth.
 
-**2. Expanded speech representations**
+### 3. Linguistic and Text Features
 
-Instead of depending only on Wav2Vec2, the improved pipeline explores:
+Text-derived features capture patterns that may be relevant to grammatical proficiency, including:
 
-- **WavLM-large embeddings** to represent speech characteristics.
-- **Whisper encoder embeddings** to capture additional learned audio representations.
-- **E5 text embeddings** to represent the semantic information in transcribed speech.
+- Sentence length and sentence-level statistics
+- Lexical diversity and word-level patterns
+- Fillers, repetitions, and disfluencies
+- Clause markers and conjunctions
+- Sentence embeddings that represent semantic and linguistic information
 
-These representations provide complementary perspectives on the same recording.
+Acoustic and prosodic statistics may also contribute information about the recordings that is not fully represented by the transcript.
 
-**3. Added handcrafted linguistic features**
+### 4. Regression Models
 
-The improved pipeline incorporates text-derived features alongside learned embeddings. This allows the models to use both high-dimensional learned representations and explicitly calculated linguistic signals.
+The experiments explore complementary regression approaches, including:
 
-**4. Broadened model experimentation**
+- **Ridge Regression** — a regularized linear model for high-dimensional features
+- **Support Vector Regression (SVR)** — a nonlinear regression approach using an RBF kernel
+- **Extra Trees Regressor** — an ensemble of randomized decision trees
+- **Histogram-based Gradient Boosting** — a boosting-based regression approach
+- **Stacking** — a meta-model that combines predictions from multiple base regressors
 
-The improved notebook investigates multiple regression approaches, including:
+The objective is not simply to use more models, but to identify which representations and regressors provide reliable improvements.
 
-- RidgeCV
-- Support Vector Regression (SVR)
-- Histogram-based gradient boosting
-- Blending and stacking of model predictions
+## Model Evaluation
 
-Rather than assuming one model is best, the pipeline tests whether combining different models and feature representations can improve generalization.
+Evaluation is a central part of this project because a model can perform well on its training data without generalizing to unseen recordings.
 
-**5. Investigated layer-wise representations and stacking**
+The experimental workflow uses nested cross-validation to evaluate candidate models and stacking configurations.
 
-Further experiments examine additional WavLM and Whisper encoder layers and compare different combinations in a stacking setup. These experiments help assess whether representations from different model layers provide useful complementary information.
+The evaluation considers:
 
-## 3. Results and Progress
+- **Root Mean Squared Error (RMSE):** measures the magnitude of prediction errors; lower is better.
+- **Pearson correlation:** measures the linear association between predictions and reference scores; higher is better.
+- **Fold-level consistency:** helps identify models whose results depend heavily on a particular split.
+- **Training RMSE:** reported separately where required, but not treated as a substitute for cross-validation.
 
-### Baseline versus advanced experiments
+Nested stacking uses inner-fold predictions to train the meta-model and separate outer folds to estimate generalization. This helps reduce the optimistic bias that can arise when a stacking model is evaluated on the same predictions used to train it.
 
-| Experiment | RMSE ↓ | Pearson correlation ↑ |
-|---|---:|---:|
-| Original notebook: Wav2Vec2 + Ridge, alpha = 100 | 0.6951 | 0.8277 |
-| Improved pipeline: WavLM + Ridge, OOF | 0.5200 | 0.8585 |
-| Improved pipeline: Whisper encoder + Ridge, OOF | 0.5285 | 0.8539 |
-| Advanced stacking reference | 0.4896 | 0.8758 |
-| Exploratory all-layer blend | **0.4885** | **0.8764** |
+Final model selection should be based on validation evidence rather than model complexity alone.
 
-**Important evaluation note:** The original baseline validation metrics and the advanced out-of-fold (OOF) results come from different evaluation procedures and should not be treated as a perfectly controlled, apples-to-apples comparison. The table shows the progression of experiments, not a definitive estimate of the improvement under an identical evaluation protocol.
+## Earlier Baseline
 
-The all-layer result is an **exploratory cross-validation experiment**. It was not used to regenerate the saved submission file, so the 0.4885 RMSE should not be interpreted as the performance of that submission.
+The initial project explored Wav2Vec2 embeddings with Ridge Regression.
 
-### What the experiments suggest
+The earlier baseline reported:
 
-- WavLM and Whisper encoder representations both provide useful predictive signals.
-- Combining multiple representations and model predictions can outperform the individual representation-based experiments in the reported advanced evaluation.
-- The exploratory all-layer experiment produced a small improvement over the stacking reference, motivating further investigation.
-- The next step is to validate the final ensemble consistently and evaluate a regenerated submission on the competition leaderboard.
+| Metric | Baseline result |
+|---|---:|
+| Five-fold validation RMSE | 0.6951 |
+| Five-fold Pearson correlation | 0.8277 |
+| Training RMSE | 0.4927 |
+| Competition leaderboard score | 0.5718 |
+| Reported leaderboard rank | 232 |
 
-## 4. Competition Submission
+These figures describe the earlier baseline, not the current Whisper–WavLM stacking notebook.
 
-The original competition submission achieved:
+Results from different validation procedures should not be compared as if they were measured under identical conditions. The current experimental results will be documented separately after the notebook has been run and the final evaluation procedure confirmed.
 
-- **Public leaderboard score:** 0.5718
-- **Reported rank:** 232
+## Reproducibility and Runtime
 
-The improved notebook generates `submission_v3.csv`. Its final competition leaderboard score has not yet been established, so no leaderboard improvement is claimed for the new submission.
+The notebook is designed for a GPU-enabled Kaggle or Google Colab environment.
 
-## 5. Repository Structure
+The workflow may require:
 
-```text
-SHL-Grammar-Scoring/
-├── README.md
-├── shl-grammar-scoring-engine.ipynb
-└── shl_grammar_scoring_whisper_wavlm.ipynb
-```
+- Python
+- PyTorch
+- Hugging Face Transformers
+- librosa and soundfile
+- sentence-transformers
+- scikit-learn
+- NumPy and pandas
+- SciPy and tqdm
 
-- `shl-grammar-scoring-engine.ipynb` — Original baseline and initial experiments.
-- `shl_grammar_scoring_whisper_wavlm.ipynb` — Improved transcription, representation learning, feature engineering, and ensemble experiments.
-- `README.md` — Project overview, methodology, and reported results.
+Pretrained model weights may need to be downloaded when the notebook runs for the first time. Audio feature extraction and transcription can be computationally expensive.
 
-## 6. Technology Stack
+Extracted features and transcripts may be cached to avoid repeating expensive processing steps. Dataset paths and runtime configuration should be adjusted for the environment being used.
 
-- **Language:** Python
-- **Audio processing:** Librosa
-- **Deep learning:** PyTorch
-- **Speech models:** Hugging Face Transformers, Whisper large-v3, WavLM-large
-- **Text representations:** E5 embeddings
-- **Machine learning:** Scikit-learn
-- **Numerical computing:** NumPy, Pandas, SciPy
-- **Environment:** Kaggle notebooks with GPU acceleration
+For reproducible comparisons, keep the random seed, validation procedure, and preprocessing configuration consistent across experiments.
 
-## 7. Running the Notebooks
+## Limitations
 
-The notebooks were developed for the Kaggle competition environment.
+- The labelled dataset is relatively small, making overfitting a significant risk.
+- Speech recognition errors can affect text-based features.
+- Pretrained speech representations may capture information beyond grammar, including speaker and recording characteristics.
+- Ensemble complexity does not guarantee better generalization.
+- Cross-validation performance does not guarantee a corresponding improvement on the competition leaderboard.
+- Performance estimates can vary with the validation split and evaluation procedure.
 
-The training dataset is not included in this repository. To reproduce the experiments:
+## Current Development Status
 
-1. Access the SHL Hiring Assessment 2026 competition dataset on Kaggle.
-2. Enable suitable GPU acceleration. The improved notebook is configured for a multi-GPU workflow.
-3. Install or enable the required Python libraries.
-4. Run the notebook cells in order, allowing the required pretrained models to be downloaded.
-5. Execute the submission-generation cells to create the prediction CSV.
+This repository is an ongoing experimental project.
 
-The improved pipeline is computationally more demanding than the baseline because it uses large pretrained speech models and additional feature extraction.
+The current focus is on improving feature representations, comparing individual regressors, testing stacking strategies, and validating whether additional complexity produces measurable gains.
 
-## 8. Key Takeaway
+The experimental notebook will continue to be updated as new results become available. A consolidated final notebook and a more structured repository layout will be prepared once the experimentation phase is complete.
 
-This project demonstrates an iterative machine learning workflow: establish a baseline, identify opportunities to improve the feature space, experiment with complementary pretrained representations, compare regression models, and investigate ensemble methods using cross-validation.
+## Repository
 
-The central progression is from **single-representation speech regression** to a **multimodal speech-and-text pipeline with model blending and stacking**. The work also highlights the importance of separating cross-validation results, exploratory experiments, and actual competition leaderboard performance.
+GitHub: [Kintsulios/SHL-Grammar-Scoring](https://github.com/Kintsulios/SHL-Grammar-Scoring)
 
+The project aims to demonstrate a systematic machine learning workflow: feature extraction, model comparison, validation, error analysis, and evidence-based model selection.
