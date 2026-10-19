@@ -12,6 +12,31 @@ This project investigates a multimodal approach that combines pretrained speech 
 
 The work is organized around iterative experimentation: establishing a baseline, exploring richer feature representations, comparing regressors, and evaluating stacking approaches using cross-validation.
 
+
+## Workflow
+
+```mermaid
+flowchart TD
+    A[Audio Dataset] --> B[Audio Preprocessing]
+    B --> C[Whisper Transcription]
+    B --> D[WavLM Features]
+
+    C --> E[Text and Linguistic Features]
+    C --> F[Sentence Embeddings]
+    B --> G[Acoustic Features]
+
+    D --> H[Feature Combination]
+    E --> H
+    F --> H
+    G --> H
+
+    H --> I[Regression Models]
+    I --> J[Validation and Model Comparison]
+    J --> K[Stacking and Ensembling]
+    K --> L[Grammar Score Prediction]
+```
+
+
 ## Dataset
 
 The competition dataset contains:
